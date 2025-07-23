@@ -1235,14 +1235,12 @@ static void smolv_Write4(smolv::ByteArray& arr, uint32_t v)
 	arr.push_back((v >> 16) & 0xFF);
 	arr.push_back(v >> 24);
 }
-#endif
 
 static void smolv_Write4(uint8_t*& buf, uint32_t v)
 {
 	memcpy(buf, &v, 4);
 	buf += 4;
 }
-
 
 static bool smolv_Read4(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outv)
 {
@@ -1252,6 +1250,19 @@ static bool smolv_Read4(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& 
 	data += 4;
 	return true;
 }
+#else
+inline void smolv_Write4(uint8_t*& buf, uint32_t v)
+{
+	memcpy(buf, &v, 4);
+	buf += 4;
+}
+
+inline void smolv_Read4(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outv)
+{
+	outv = (data[0]) | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+	data += 4;
+}
+#endif
 
 
 // --------------------------------------------------------------------------------------------
@@ -1324,7 +1335,7 @@ static int32_t smolv_ZigDecode(uint32_t u)
 // more compact varint encoding. This basically swaps rarely used op values that are < 16 with the
 // ones that are common.
 
-static SpvOp smolv_RemapOp(SpvOp op)
+inline SpvOp smolv_RemapOp(SpvOp op)
 {
 #	define _SMOLV_SWAP_OP(op1,op2) if (op==op1) return op2; if (op==op2) return op1
 	_SMOLV_SWAP_OP(SpvOpDecorate,SpvOpNop); // 0: 24%
@@ -1352,7 +1363,7 @@ static SpvOp smolv_RemapOp(SpvOp op)
 // into 3 bits (be <8). SPIR-V instruction lengths are always at least 1, and for some other
 // instructions they are guaranteed to be some other minimum length. Adjust the length before encoding,
 // and after decoding accordingly.
-
+#ifndef MINIMAL
 static uint32_t smolv_EncodeLen(SpvOp op, uint32_t len)
 {
 	len--;
@@ -1363,7 +1374,7 @@ static uint32_t smolv_EncodeLen(SpvOp op, uint32_t len)
 	if (op == SpvOpAccessChain)				len -= 3;
 	return len;
 }
-
+#endif
 static uint32_t smolv_DecodeLen(SpvOp op, uint32_t len)
 {
 	len++;
