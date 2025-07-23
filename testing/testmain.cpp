@@ -1,6 +1,7 @@
 // smol-v - tests code - public domain - https://github.com/aras-p/smol-v
 // authored on 2016-2024 by Aras Pranckevicius
 // no warranty implied; use at your own risk
+#ifndef MINIMAL
 
 #include "../source/smolv.h"
 #include "external/lz4/lz4.h"
@@ -865,3 +866,10 @@ int main()
 
 	return 0;
 }
+
+#else
+int main()
+{
+	return 0;
+}
+#endif

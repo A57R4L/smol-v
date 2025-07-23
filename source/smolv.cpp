@@ -1609,9 +1609,9 @@ size_t smolv::GetDecodedBufferSize(const void* smolvData, size_t smolvSize)
 }
 #endif
 
+#ifndef MINIMAL
 bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags)
 {
-#ifndef MINIMAL
 	// check header, and whether we have enough output buffer space
 	const size_t neededBufferSize = GetDecodedBufferSize(smolvData, smolvSize);
 	if (neededBufferSize == 0)
@@ -1620,6 +1620,9 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 		return false; // not enough space in output buffer
 	if (spirvOutputBuffer == NULL)
 		return false; // output buffer is null
+#else
+bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer)
+{
 #endif
 
 	const uint8_t* bytes = (const uint8_t*)smolvData;
@@ -1628,11 +1631,11 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 	uint8_t* outSpirv = (uint8_t*)spirvOutputBuffer;
 	
 	uint32_t val;
-	int smolVersion = 0;
+	EXCLUDEMINIMAL(int smolVersion = 0;);
 
 	// header
 	smolv_Write4(outSpirv, kSpirVHeaderMagic); bytes += 4;
-	smolv_Read4(bytes, bytesEnd, val); smolVersion = val >> 24; val &= 0x00FFFFFF; smolv_Write4(outSpirv, val); // version
+	smolv_Read4(bytes, bytesEnd, val); EXCLUDEMINIMAL(smolVersion = val >> 24;); val &= 0x00FFFFFF; smolv_Write4(outSpirv, val); // version
 	smolv_Read4(bytes, bytesEnd, val); smolv_Write4(outSpirv, val); // generator
 	smolv_Read4(bytes, bytesEnd, val); smolv_Write4(outSpirv, val); // bound
 	smolv_Read4(bytes, bytesEnd, val); smolv_Write4(outSpirv, val); // schema
@@ -1641,9 +1644,13 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 	// there are two SMOL-V encoding versions, both not indicating anything in their header version field:
 	// one that is called "before zero" here (2016-08-31 code). Support decoding that one only by presence
 	// of this special flag.
-	const bool beforeZeroVersion = smolVersion == 0 && (flags & kDecodeFlagUse20160831AsZeroVersion) != 0;
+	EXCLUDEMINIMAL(const bool beforeZeroVersion = smolVersion == 0 && (flags & kDecodeFlagUse20160831AsZeroVersion) != 0;);
 
+#ifndef MINIMAL
 	const int knownOpsCount = smolv_GetKnownOpsCount(smolVersion);
+#else
+	const int knownOpsCount = SpvOpGroupNonUniformQuadSwap + 1;
+#endif
 
 	uint32_t prevResult = 0;
 	uint32_t prevDecorate = 0;
@@ -1684,14 +1691,22 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 		{
 			if (!smolv_ReadVarint(bytes, bytesEnd, val)) return false;
 			// "before zero" version did not use zig encoding for the value
+#ifndef MINIMAL
 			val = prevDecorate + (beforeZeroVersion ? val : smolv_ZigDecode(val));
+#else
+			val = prevDecorate + (smolv_ZigDecode(val));
+#endif
 			smolv_Write4(outSpirv, val);
 			prevDecorate = val;
 			ioffs++;
 		}
 
 		// MemberDecorate special decoding
+#ifndef MINIMAL
 		if (op == SpvOpMemberDecorate && !beforeZeroVersion)
+#else
+		if (op == SpvOpMemberDecorate)
+#endif
 		{
 			if (bytes >= bytesEnd)
 				return false; // broken input
@@ -1754,11 +1769,13 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 		// "before zero" version only used zig encoding for IDs of several ops; after
 		// that ops got zig encoding for their IDs
 		bool zigDecodeVals = true;
+#ifndef MINIMAL
 		if (beforeZeroVersion)
 		{
 			if (op != SpvOpControlBarrier && op != SpvOpMemoryBarrier && op != SpvOpLoopMerge && op != SpvOpSelectionMerge && op != SpvOpBranch && op != SpvOpBranchConditional && op != SpvOpMemoryNamedBarrier)
 				zigDecodeVals = false;
 		}
+#endif
 		for (int i = 0; i < relativeCount && ioffs < instrLen; ++i, ++ioffs)
 		{
 			if (!smolv_ReadVarint(bytes, bytesEnd, val)) return false;

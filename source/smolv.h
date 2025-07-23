@@ -54,14 +54,22 @@
 
 #pragma once
 
-#define MINIMAL
-
 #include <stdint.h>
+
+#ifndef MINIMAL
+#define MINIMAL
+#endif
+
 #ifndef MINIMAL
 #include <vector>
 #include <cstddef>
 #endif
 
+#ifdef MINIMAL
+#define EXCLUDEMINIMAL(x) {}
+#else
+#define EXCLUDEMINIMAL(x) (x)
+#endif
 
 namespace smolv
 {
@@ -112,7 +120,11 @@ namespace smolv
 	//
 	// Returns false on malformed input; if that happens the output buffer might be only partially
 	// written to.
+#ifndef MINIMAL
 	bool Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags = kDecodeFlagNone);
+#else
+	bool Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer);
+#endif
 
 #ifndef MINIMAL
 	// Given a SMOL-V program, get size of the decoded SPIR-V program.
