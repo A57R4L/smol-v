@@ -80,6 +80,10 @@ namespace smolv
 	{
 		std::string entry;
 		int count = 0;
+
+		decodeBlock(std::string newEntry, int newCount) : entry(newEntry), count(newCount) {};
+
+		decodeBlock(std::string newEntry) : entry(newEntry), count(1) {};
 	};
 
 	struct DecodeAnalysis
