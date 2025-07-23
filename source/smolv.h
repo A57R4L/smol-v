@@ -89,9 +89,15 @@ namespace smolv
 	struct DecodeAnalysis
 	{
 		std::vector<decodeBlock> Blocks;
+		std::vector<decodeBlock> SpvOps;
 	};
 
+#define ANALYZE(X) DecodeAdd(decodeAnalysis, X);
+#define SVOPSADD(X) SpvOpsAdd(analysis, std::to_string(X));
+
 	static void DecodeAdd(DecodeAnalysis& decodeAnalysis, std::string entry);
+
+	static void SpvOpsAdd(DecodeAnalysis* decodeAnalysis, std::string entry);
 
 	// Preserve *some* OpName debug names.
 	// Return true to preserve, false to strip.

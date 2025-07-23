@@ -1130,31 +1130,35 @@ static int smolv_GetKnownOpsCount(int version)
 	return 0;
 }
 
-static bool smolv_OpHasResult(SpvOp op, int opsCount)
+static bool smolv_OpHasResult(SpvOp op, int opsCount, smolv::DecodeAnalysis* analysis = nullptr)
 {
 	if (op < 0 || op >= opsCount)
 		return false;
+	SVOPSADD(op);
 	return kSpirvOpData[op].hasResult != 0;
 }
 
-static bool smolv_OpHasType(SpvOp op, int opsCount)
+static bool smolv_OpHasType(SpvOp op, int opsCount, smolv::DecodeAnalysis* analysis = nullptr)
 {
 	if (op < 0 || op >= opsCount)
 		return false;
+	SVOPSADD(op);
 	return kSpirvOpData[op].hasType != 0;
 }
 
-static int smolv_OpDeltaFromResult(SpvOp op, int opsCount)
+static int smolv_OpDeltaFromResult(SpvOp op, int opsCount, smolv::DecodeAnalysis* analysis = nullptr)
 {
 	if (op < 0 || op >= opsCount)
 		return 0;
+	SVOPSADD(op);
 	return kSpirvOpData[op].deltaFromResult;
 }
 
-static bool smolv_OpVarRest(SpvOp op, int opsCount)
+static bool smolv_OpVarRest(SpvOp op, int opsCount, smolv::DecodeAnalysis* analysis = nullptr)
 {
 	if (op < 0 || op >= opsCount)
 		return false;
+	SVOPSADD(op);
 	return kSpirvOpData[op].varrest != 0;
 }
 
@@ -1800,7 +1804,7 @@ static void smolv::DecodeAdd(DecodeAnalysis& decodeAnalysis, std::string entry)
 	bool bEntryfound = false;
 	decodeBlock* CurrentBlock = nullptr;
 
-	for (auto block : decodeAnalysis.Blocks)
+	for (auto &block : decodeAnalysis.Blocks)
 	{
 		if (block.entry == entry)
 		{
@@ -1819,7 +1823,29 @@ static void smolv::DecodeAdd(DecodeAnalysis& decodeAnalysis, std::string entry)
 	}
 }
 
-#define ANALYZE(X) DecodeAdd(decodeAnalysis, X);
+static void smolv::SpvOpsAdd(DecodeAnalysis* decodeAnalysis, std::string entry)
+{
+	bool bEntryfound = false;
+	decodeBlock* CurrentBlock = nullptr;
+
+	for (auto& op : decodeAnalysis->SpvOps)
+	{
+		if (op.entry == entry)
+		{
+			CurrentBlock = &op;
+			break;
+		}
+	}
+
+	if (CurrentBlock)
+	{
+		CurrentBlock->count = CurrentBlock->count + 1;
+	}
+	else
+	{
+		decodeAnalysis->SpvOps.emplace_back(entry, 1);
+	}
+}
 
 bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, DecodeAnalysis& decodeAnalysis, uint32_t flags)
 {
@@ -1875,7 +1901,7 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 		size_t ioffs = 1;
 
 		// read type as varint, if we have it
-		if (smolv_OpHasType(op, knownOpsCount))
+		if (smolv_OpHasType(op, knownOpsCount, &decodeAnalysis))
 		{
 			ANALYZE("smolv_OpHasType");
 			if (!smolv_ReadVarint(bytes, bytesEnd, val)) return false;
@@ -1883,7 +1909,7 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 			ioffs++;
 		}
 		// read result as delta+varint, if we have it
-		if (smolv_OpHasResult(op, knownOpsCount))
+		if (smolv_OpHasResult(op, knownOpsCount, &decodeAnalysis))
 		{
 			ANALYZE("smolv_OpHasResult");
 			if (!smolv_ReadVarint(bytes, bytesEnd, val)) return false;
@@ -1968,7 +1994,7 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 		}
 
 		// Read this many IDs, that are relative to result ID
-		int relativeCount = smolv_OpDeltaFromResult(op, knownOpsCount);
+		int relativeCount = smolv_OpDeltaFromResult(op, knownOpsCount, &decodeAnalysis);
 		// "before zero" version only used zig encoding for IDs of several ops; after
 		// that ops got zig encoding for their IDs
 		bool zigDecodeVals = true;
@@ -1994,7 +2020,7 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 			if (instrLen > 7) smolv_Write4(outSpirv, (swizzle >> 2) & 3);
 			if (instrLen > 8) smolv_Write4(outSpirv, swizzle & 3);
 		}
-		else if (smolv_OpVarRest(op, knownOpsCount))
+		else if (smolv_OpVarRest(op, knownOpsCount, &decodeAnalysis))
 		{
 			ANALYZE("OpvarRest");
 			// read rest of words with variable encoding
