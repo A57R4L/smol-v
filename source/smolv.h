@@ -76,8 +76,6 @@ namespace smolv
 
 	// From shader decoding round, fill in data to allow automatic and manual code/data minification 
 
-#define ANALYZE(x) 
-	
 	struct decodeBlock
 	{
 		std::string entry;
@@ -123,7 +121,7 @@ namespace smolv
 	// written to.
 	bool Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags = kDecodeFlagNone);
 
-	bool DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags = kDecodeFlagNone, DecodeAnalysis& decodeAnalysis);
+	bool DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, DecodeAnalysis& decodeAnalysis, uint32_t flags = kDecodeFlagNone);
 
 	// Given a SMOL-V program, get size of the decoded SPIR-V program.
 	// This is the buffer size that Decode expects.
