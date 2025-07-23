@@ -1227,7 +1227,7 @@ static bool smolv_CheckSmolHeader(const uint8_t* bytes, size_t byteCount)
 	return true;
 }
 
-
+#ifndef MINIMAL
 static void smolv_Write4(smolv::ByteArray& arr, uint32_t v)
 {
 	arr.push_back(v & 0xFF);
@@ -1235,6 +1235,7 @@ static void smolv_Write4(smolv::ByteArray& arr, uint32_t v)
 	arr.push_back((v >> 16) & 0xFF);
 	arr.push_back(v >> 24);
 }
+#endif
 
 static void smolv_Write4(uint8_t*& buf, uint32_t v)
 {
@@ -1260,6 +1261,7 @@ static bool smolv_Read4(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& 
 // - other 7 bits are the actual value payload.
 // Takes 1-5 bytes to encode an integer (values between 0 and 127 take one byte, etc.).
 
+#ifndef MINIMAL
 static void smolv_WriteVarint(smolv::ByteArray& arr, uint32_t v)
 {
 	while (v > 127)
@@ -1269,6 +1271,7 @@ static void smolv_WriteVarint(smolv::ByteArray& arr, uint32_t v)
 	}
 	arr.push_back(v & 127);
 }
+#endif
 
 static bool smolv_ReadVarint(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outVal)
 {
@@ -1358,6 +1361,7 @@ static uint32_t smolv_DecodeLen(SpvOp op, uint32_t len)
 // 0x LLLL OOOO is how SPIR-V encodes it (L=length, O=op), we shuffle into:
 // 0x LLLO OOLO, so that common case (op<16, len<8) is encoded into one byte.
 
+#ifndef MINIMAL
 static bool smolv_WriteLengthOp(smolv::ByteArray& arr, uint32_t len, SpvOp op)
 {
 	len = smolv_EncodeLen(op, len);
@@ -1371,6 +1375,7 @@ static bool smolv_WriteLengthOp(smolv::ByteArray& arr, uint32_t len, SpvOp op)
 	smolv_WriteVarint(arr, oplen);
 	return true;
 }
+#endif
 
 static bool smolv_ReadLengthOp(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outLen, SpvOp& outOp)
 {
@@ -1393,7 +1398,7 @@ static bool smolv_ReadLengthOp(const uint8_t*& data, const uint8_t* dataEnd, uin
 	if (words + len > wordsEnd) return false; /* malformed instruction, goes past end of data */ \
 	SpvOp op = (SpvOp)(words[0] & 0xFFFF)
 
-
+#ifndef MINIMAL
 bool smolv::Encode(const void* spirvData, size_t spirvSize, ByteArray& outSmolv, uint32_t flags, StripOpNameFilterFunc stripFilter)
 {
 	const size_t wordCount = spirvSize / 4;
@@ -1602,10 +1607,11 @@ size_t smolv::GetDecodedBufferSize(const void* smolvData, size_t smolvSize)
 	const uint32_t* words = (const uint32_t*)smolvData;
 	return words[5];
 }
-
+#endif
 
 bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags)
 {
+#ifndef MINIMAL
 	// check header, and whether we have enough output buffer space
 	const size_t neededBufferSize = GetDecodedBufferSize(smolvData, smolvSize);
 	if (neededBufferSize == 0)
@@ -1614,6 +1620,7 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 		return false; // not enough space in output buffer
 	if (spirvOutputBuffer == NULL)
 		return false; // output buffer is null
+#endif
 
 	const uint8_t* bytes = (const uint8_t*)smolvData;
 	const uint8_t* bytesEnd = bytes + smolvSize;
@@ -1788,9 +1795,10 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 		}
 	}
 
+#ifndef MINIMAL
 	if ((uint8_t*)spirvOutputBuffer + neededBufferSize != outSpirv)
 		return false; // something went wrong during decoding? we should have decoded to exact output size
-	
+#endif
 	return true;
 }
 
@@ -1799,7 +1807,7 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 // --------------------------------------------------------------------------------------------
 // Calculating instruction count / space stats on SPIR-V and SMOL-V
 
-
+#ifndef MINIMAL
 struct smolv::Stats
 {
 	Stats() { memset(this, 0, sizeof(*this)); }
@@ -2065,6 +2073,7 @@ void smolv::StatsPrint(const Stats* stats)
 		);
 	}	
 }
+#endif
 
 
 // ------------------------------------------------------------------------------

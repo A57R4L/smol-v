@@ -54,12 +54,18 @@
 
 #pragma once
 
+#define MINIMAL
+
 #include <stdint.h>
+#ifndef MINIMAL
 #include <vector>
 #include <cstddef>
+#endif
+
 
 namespace smolv
 {
+#ifndef MINIMAL
 	typedef std::vector<uint8_t> ByteArray;
 
 	enum EncodeFlags
@@ -67,12 +73,15 @@ namespace smolv
 		kEncodeFlagNone = 0,
 		kEncodeFlagStripDebugInfo = (1<<0), // Strip all optional SPIR-V instructions (debug names etc.)
 	};
+#endif
+
 	enum DecodeFlags
 	{
 		kDecodeFlagNone = 0,
 		kDecodeFlagUse20160831AsZeroVersion = (1 << 0), // For "version zero" of SMOL-V encoding, use 2016 08 31 code path (this is what happens to be used by Unity 2017-2020)
 	};
 
+#ifndef MINIMAL
 	// Preserve *some* OpName debug names.
 	// Return true to preserve, false to strip.
 	// This is really only used to implement a workaround for problems with some Vulkan drivers.
@@ -91,7 +100,7 @@ namespace smolv
 	// partial/broken SMOL-V program.
 	bool Encode(const void* spirvData, size_t spirvSize, ByteArray& outSmolv, uint32_t flags = kEncodeFlagNone, StripOpNameFilterFunc stripFilter = 0);
 
-
+#endif
 	// Decode SMOL-V into SPIR-V.
 	//
 	// Resulting data is written into the passed buffer. Get required buffer space with
@@ -105,7 +114,7 @@ namespace smolv
 	// written to.
 	bool Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags = kDecodeFlagNone);
 
-
+#ifndef MINIMAL
 	// Given a SMOL-V program, get size of the decoded SPIR-V program.
 	// This is the buffer size that Decode expects.
 	//
@@ -124,7 +133,7 @@ namespace smolv
 	bool StatsCalculate(Stats* stats, const void* spirvData, size_t spirvSize);
 	bool StatsCalculateSmol(Stats* stats, const void* smolvData, size_t smolvSize);
 	void StatsPrint(const Stats* stats);
-
+#endif
 } // namespace smolv
 
 
