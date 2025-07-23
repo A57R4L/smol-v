@@ -1821,7 +1821,7 @@ static void smolv::DecodeAdd(DecodeAnalysis& decodeAnalysis, std::string entry)
 
 #define ANALYZE(X) DecodeAdd(decodeAnalysis, X);
 
-bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, DecodeAnalysis& decodeAnalysis, uint32_t flags = kDecodeFlagNone)
+bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, DecodeAnalysis& decodeAnalysis, uint32_t flags)
 {
 	// check header, and whether we have enough output buffer space
 	const size_t neededBufferSize = GetDecodedBufferSize(smolvData, smolvSize);
