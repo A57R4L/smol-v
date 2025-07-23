@@ -93,7 +93,7 @@ namespace smolv
 	};
 
 #define ANALYZE(X) DecodeAdd(decodeAnalysis, X);
-#define SVOPSADD(X) SpvOpsAdd(analysis, std::to_string(X));
+#define SVOPSADD(X) if (analysis) SpvOpsAdd(analysis, std::to_string(X));
 
 	static void DecodeAdd(DecodeAnalysis& decodeAnalysis, std::string entry);
 
