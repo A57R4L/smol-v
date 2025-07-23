@@ -1271,7 +1271,6 @@ static void smolv_WriteVarint(smolv::ByteArray& arr, uint32_t v)
 	}
 	arr.push_back(v & 127);
 }
-#endif
 
 static bool smolv_ReadVarint(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outVal)
 {
@@ -1294,6 +1293,26 @@ static uint32_t smolv_ZigEncode(int32_t i)
 {
 	return (uint32_t(i) << 1) ^ (i >> 31);
 }
+#endif
+
+#ifdef MINIMAL
+static void smolv_ReadVarint(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outVal)
+{
+//	uint32_t v = 0;
+	outVal = 0;
+	uint32_t shift = 0;
+	while (data < dataEnd)
+	{
+		uint8_t b = *data;
+		outVal |= (b & 127) << shift;
+		shift += 7;
+		data++;
+		if (!(b & 128))
+			break;
+	}
+//	outVal = v;
+}
+#endif
 
 static int32_t smolv_ZigDecode(uint32_t u)
 {
@@ -1375,7 +1394,7 @@ static bool smolv_WriteLengthOp(smolv::ByteArray& arr, uint32_t len, SpvOp op)
 	smolv_WriteVarint(arr, oplen);
 	return true;
 }
-#endif
+
 
 static bool smolv_ReadLengthOp(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outLen, SpvOp& outOp)
 {
@@ -1389,7 +1408,21 @@ static bool smolv_ReadLengthOp(const uint8_t*& data, const uint8_t* dataEnd, uin
 	outLen = smolv_DecodeLen(outOp, outLen);
 	return true;
 }
+#endif
 
+#ifdef MINIMAL
+void smolv_ReadLengthOp(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outLen, SpvOp& outOp)
+{
+	uint32_t val;
+	smolv_ReadVarint(data, dataEnd, val);
+
+	outLen = ((val >> 20) << 4) | ((val >> 4) & 0xF);
+	outOp = (SpvOp)(((val >> 4) & 0xFFF0) | (val & 0xF));
+
+	outOp = smolv_RemapOp(outOp);
+	outLen = smolv_DecodeLen(outOp, outLen);
+}
+#endif
 
 
 #define _SMOLV_READ_OP(len, words, op) \
