@@ -1620,37 +1620,29 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 		return false; // not enough space in output buffer
 	if (spirvOutputBuffer == NULL)
 		return false; // output buffer is null
-#else
-bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer)
-{
-#endif
 
 	const uint8_t* bytes = (const uint8_t*)smolvData;
 	const uint8_t* bytesEnd = bytes + smolvSize;
 
 	uint8_t* outSpirv = (uint8_t*)spirvOutputBuffer;
-	
+
 	uint32_t val;
-	EXCLUDEMINIMAL(int smolVersion = 0;);
+	int smolVersion = 0;
 
 	// header
 	smolv_Write4(outSpirv, kSpirVHeaderMagic); bytes += 4;
-	smolv_Read4(bytes, bytesEnd, val); EXCLUDEMINIMAL(smolVersion = val >> 24;); val &= 0x00FFFFFF; smolv_Write4(outSpirv, val); // version
+	smolv_Read4(bytes, bytesEnd, val); smolVersion = val >> 24; val &= 0x00FFFFFF; smolv_Write4(outSpirv, val); // version
 	smolv_Read4(bytes, bytesEnd, val); smolv_Write4(outSpirv, val); // generator
 	smolv_Read4(bytes, bytesEnd, val); smolv_Write4(outSpirv, val); // bound
 	smolv_Read4(bytes, bytesEnd, val); smolv_Write4(outSpirv, val); // schema
 	bytes += 4; // decode buffer size
-	
+
 	// there are two SMOL-V encoding versions, both not indicating anything in their header version field:
 	// one that is called "before zero" here (2016-08-31 code). Support decoding that one only by presence
 	// of this special flag.
-	EXCLUDEMINIMAL(const bool beforeZeroVersion = smolVersion == 0 && (flags & kDecodeFlagUse20160831AsZeroVersion) != 0;);
+	const bool beforeZeroVersion = smolVersion == 0 && (flags & kDecodeFlagUse20160831AsZeroVersion) != 0;
 
-#ifndef MINIMAL
 	const int knownOpsCount = smolv_GetKnownOpsCount(smolVersion);
-#else
-	const int knownOpsCount = SpvOpGroupNonUniformQuadSwap + 1;
-#endif
 
 	uint32_t prevResult = 0;
 	uint32_t prevDecorate = 0;
@@ -1685,28 +1677,20 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 			prevResult = val;
 			ioffs++;
 		}
-		
+
 		// Decorate: IDs relative to previous decorate
 		if (op == SpvOpDecorate || op == SpvOpMemberDecorate)
 		{
 			if (!smolv_ReadVarint(bytes, bytesEnd, val)) return false;
 			// "before zero" version did not use zig encoding for the value
-#ifndef MINIMAL
 			val = prevDecorate + (beforeZeroVersion ? val : smolv_ZigDecode(val));
-#else
-			val = prevDecorate + (smolv_ZigDecode(val));
-#endif
 			smolv_Write4(outSpirv, val);
 			prevDecorate = val;
 			ioffs++;
 		}
 
 		// MemberDecorate special decoding
-#ifndef MINIMAL
 		if (op == SpvOpMemberDecorate && !beforeZeroVersion)
-#else
-		if (op == SpvOpMemberDecorate)
-#endif
 		{
 			if (bytes >= bytesEnd)
 				return false; // broken input
@@ -1720,7 +1704,7 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 				if (!smolv_ReadVarint(bytes, bytesEnd, memberIndex)) return false;
 				memberIndex += prevIndex;
 				prevIndex = memberIndex;
-				
+
 				// decoration (and length if not common/known)
 				uint32_t memberDec;
 				if (!smolv_ReadVarint(bytes, bytesEnd, memberDec)) return false;
@@ -1769,13 +1753,11 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 		// "before zero" version only used zig encoding for IDs of several ops; after
 		// that ops got zig encoding for their IDs
 		bool zigDecodeVals = true;
-#ifndef MINIMAL
 		if (beforeZeroVersion)
 		{
 			if (op != SpvOpControlBarrier && op != SpvOpMemoryBarrier && op != SpvOpLoopMerge && op != SpvOpSelectionMerge && op != SpvOpBranch && op != SpvOpBranchConditional && op != SpvOpMemoryNamedBarrier)
 				zigDecodeVals = false;
 		}
-#endif
 		for (int i = 0; i < relativeCount && ioffs < instrLen; ++i, ++ioffs)
 		{
 			if (!smolv_ReadVarint(bytes, bytesEnd, val)) return false;
@@ -1812,14 +1794,169 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 		}
 	}
 
-#ifndef MINIMAL
 	if ((uint8_t*)spirvOutputBuffer + neededBufferSize != outSpirv)
 		return false; // something went wrong during decoding? we should have decoded to exact output size
-#endif
+
 	return true;
 }
+#endif
+
+#ifdef MINIMAL
+void smolv::TinyDecode(const uint8_t* bytes, size_t smolvSize, uint8_t* outSpirv)
+{
+	const uint8_t* bytesEnd = bytes + smolvSize;
+
+	uint32_t val;
+
+	// header
+	smolv_Write4(outSpirv, kSpirVHeaderMagic); bytes += 4;
+	smolv_Read4(bytes, bytesEnd, val); val &= 0x00FFFFFF; smolv_Write4(outSpirv, val); // version
+	smolv_Read4(bytes, bytesEnd, val); smolv_Write4(outSpirv, val); // generator
+	smolv_Read4(bytes, bytesEnd, val); smolv_Write4(outSpirv, val); // bound
+	smolv_Read4(bytes, bytesEnd, val); smolv_Write4(outSpirv, val); // schema
+	bytes += 4; // decode buffer size
+
+	const int knownOpsCount = SpvOpGroupNonUniformQuadSwap + 1;
+
+	uint32_t prevResult = 0;
+	uint32_t prevDecorate = 0;
+
+	while (bytes < bytesEnd)
+	{
+		// read length + opcode
+		uint32_t instrLen;
+		SpvOp op;
+		smolv_ReadLengthOp(bytes, bytesEnd, instrLen, op);
+		const bool wasSwizzle = (op == SpvOpVectorShuffleCompact);
+		if (wasSwizzle)
+			op = SpvOpVectorShuffle;
+		smolv_Write4(outSpirv, (instrLen << 16) | op);
+
+		size_t ioffs = 1;
+
+		// read type as varint, if we have it
+		if (smolv_OpHasType(op, knownOpsCount))
+		{
+			smolv_ReadVarint(bytes, bytesEnd, val);
+			smolv_Write4(outSpirv, val);
+			ioffs++;
+		}
+		// read result as delta+varint, if we have it
+		if (smolv_OpHasResult(op, knownOpsCount))
+		{
+			smolv_ReadVarint(bytes, bytesEnd, val);
+			val = prevResult + smolv_ZigDecode(val);
+			smolv_Write4(outSpirv, val);
+			prevResult = val;
+			ioffs++;
+		}
+
+		// Decorate: IDs relative to previous decorate
+		if (op == SpvOpDecorate || op == SpvOpMemberDecorate)
+		{
+			smolv_ReadVarint(bytes, bytesEnd, val);
+			// "before zero" version did not use zig encoding for the value
+			val = prevDecorate + (smolv_ZigDecode(val));
+			smolv_Write4(outSpirv, val);
+			prevDecorate = val;
+			ioffs++;
+		}
+
+		// MemberDecorate special decoding
+		if (op == SpvOpMemberDecorate)
+		{
+			int count = *bytes++;
+			int prevIndex = 0;
+			int prevOffset = 0;
+			for (int m = 0; m < count; ++m)
+			{
+				// read member index
+				uint32_t memberIndex;
+				smolv_ReadVarint(bytes, bytesEnd, memberIndex);
+				memberIndex += prevIndex;
+				prevIndex = memberIndex;
+
+				// decoration (and length if not common/known)
+				uint32_t memberDec;
+				smolv_ReadVarint(bytes, bytesEnd, memberDec);
+				const int knownExtraOps = smolv_DecorationExtraOps(memberDec);
+				uint32_t memberLen;
+				if (knownExtraOps == -1)
+				{
+					smolv_ReadVarint(bytes, bytesEnd, memberLen);
+					memberLen += 4;
+				}
+				else
+					memberLen = 4 + knownExtraOps;
+
+				// write SPIR-V op+length (unless it's first member decoration, in which case it was written before)
+				if (m != 0)
+				{
+					smolv_Write4(outSpirv, (memberLen << 16) | op);
+					smolv_Write4(outSpirv, prevDecorate);
+				}
+				smolv_Write4(outSpirv, memberIndex);
+				smolv_Write4(outSpirv, memberDec);
+				// Special case for Offset decorations
+				if (memberDec == 35) // Offset
+				{
+					smolv_ReadVarint(bytes, bytesEnd, val);
+					val += prevOffset;
+					smolv_Write4(outSpirv, val);
+					prevOffset = val;
+				}
+				else
+				{
+					for (uint32_t i = 4; i < memberLen; ++i)
+					{
+						smolv_ReadVarint(bytes, bytesEnd, val);
+						smolv_Write4(outSpirv, val);
+					}
+				}
+			}
+			continue;
+		}
+
+		// Read this many IDs, that are relative to result ID
+		int relativeCount = smolv_OpDeltaFromResult(op, knownOpsCount);
 
 
+		for (int i = 0; i < relativeCount && ioffs < instrLen; ++i, ++ioffs)
+		{
+			smolv_ReadVarint(bytes, bytesEnd, val);
+			val = smolv_ZigDecode(val);
+			smolv_Write4(outSpirv, prevResult - val);
+		}
+
+		if (wasSwizzle && instrLen <= 9)
+		{
+			uint32_t swizzle = *bytes++;
+			if (instrLen > 5) smolv_Write4(outSpirv, (swizzle >> 6) & 3);
+			if (instrLen > 6) smolv_Write4(outSpirv, (swizzle >> 4) & 3);
+			if (instrLen > 7) smolv_Write4(outSpirv, (swizzle >> 2) & 3);
+			if (instrLen > 8) smolv_Write4(outSpirv, swizzle & 3);
+		}
+		else if (smolv_OpVarRest(op, knownOpsCount))
+		{
+			// read rest of words with variable encoding
+			for (; ioffs < instrLen; ++ioffs)
+			{
+				smolv_ReadVarint(bytes, bytesEnd, val);
+				smolv_Write4(outSpirv, val);
+			}
+		}
+		else
+		{
+			// read rest of words without any encoding
+			for (; ioffs < instrLen; ++ioffs)
+			{
+				smolv_Read4(bytes, bytesEnd, val);
+				smolv_Write4(outSpirv, val);
+			}
+		}
+	}
+}
+#endif
 
 // --------------------------------------------------------------------------------------------
 // Calculating instruction count / space stats on SPIR-V and SMOL-V

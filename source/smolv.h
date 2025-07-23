@@ -123,7 +123,7 @@ namespace smolv
 #ifndef MINIMAL
 	bool Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags = kDecodeFlagNone);
 #else
-	bool Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer);
+	void TinyDecode(const uint8_t* smolvData, size_t smolvSize, uint8_t* outSpirv);
 #endif
 
 #ifndef MINIMAL
