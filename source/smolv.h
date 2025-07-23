@@ -57,6 +57,7 @@
 #include <stdint.h>
 #include <vector>
 #include <cstddef>
+#include <string>
 
 namespace smolv
 {
@@ -72,6 +73,23 @@ namespace smolv
 		kDecodeFlagNone = 0,
 		kDecodeFlagUse20160831AsZeroVersion = (1 << 0), // For "version zero" of SMOL-V encoding, use 2016 08 31 code path (this is what happens to be used by Unity 2017-2020)
 	};
+
+	// From shader decoding round, fill in data to allow automatic and manual code/data minification 
+
+#define ANALYZE(x) 
+	
+	struct decodeBlock
+	{
+		std::string entry;
+		int count = 0;
+	};
+
+	struct DecodeAnalysis
+	{
+		std::vector<decodeBlock> Blocks;
+	};
+
+	static void DecodeAdd(DecodeAnalysis& decodeAnalysis, std::string entry);
 
 	// Preserve *some* OpName debug names.
 	// Return true to preserve, false to strip.
@@ -105,6 +123,7 @@ namespace smolv
 	// written to.
 	bool Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags = kDecodeFlagNone);
 
+	bool DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags = kDecodeFlagNone, DecodeAnalysis& decodeAnalysis);
 
 	// Given a SMOL-V program, get size of the decoded SPIR-V program.
 	// This is the buffer size that Decode expects.
