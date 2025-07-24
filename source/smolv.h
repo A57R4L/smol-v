@@ -92,10 +92,11 @@ namespace smolv
 		std::vector<decodeBlock> SpvOps;
 	};
 
-#define ANALYZE(X) DecodeAdd(decodeAnalysis, X);
-#define SVOPSADD(X) if (analysis) SpvOpsAdd(analysis, std::to_string(X));
+#define ANALYZE(X) if (decodeAnalysis) DecodeAdd(decodeAnalysis, X);
+#define ANALYZE_REMAP(X) if (decodeAnalysis) smolv::DecodeAdd(decodeAnalysis, X);
+#define SVOPSADD(X) if (decodeAnalysis) SpvOpsAdd(decodeAnalysis, std::to_string(X));
 
-	static void DecodeAdd(DecodeAnalysis& decodeAnalysis, std::string entry);
+	static void DecodeAdd(DecodeAnalysis* decodeAnalysis, std::string entry);
 
 	static void SpvOpsAdd(DecodeAnalysis* decodeAnalysis, std::string entry);
 
@@ -131,7 +132,7 @@ namespace smolv
 	// written to.
 	bool Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, uint32_t flags = kDecodeFlagNone);
 
-	bool DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, DecodeAnalysis& decodeAnalysis, uint32_t flags = kDecodeFlagNone);
+	bool DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, DecodeAnalysis* decodeAnalysis, uint32_t flags = kDecodeFlagNone);
 
 	// Given a SMOL-V program, get size of the decoded SPIR-V program.
 	// This is the buffer size that Decode expects.

@@ -1130,7 +1130,7 @@ static int smolv_GetKnownOpsCount(int version)
 	return 0;
 }
 
-static bool smolv_OpHasResult(SpvOp op, int opsCount, smolv::DecodeAnalysis* analysis = nullptr)
+static bool smolv_OpHasResult(SpvOp op, int opsCount, smolv::DecodeAnalysis* decodeAnalysis = nullptr)
 {
 	if (op < 0 || op >= opsCount)
 		return false;
@@ -1138,7 +1138,7 @@ static bool smolv_OpHasResult(SpvOp op, int opsCount, smolv::DecodeAnalysis* ana
 	return kSpirvOpData[op].hasResult != 0;
 }
 
-static bool smolv_OpHasType(SpvOp op, int opsCount, smolv::DecodeAnalysis* analysis = nullptr)
+static bool smolv_OpHasType(SpvOp op, int opsCount, smolv::DecodeAnalysis* decodeAnalysis = nullptr)
 {
 	if (op < 0 || op >= opsCount)
 		return false;
@@ -1146,7 +1146,7 @@ static bool smolv_OpHasType(SpvOp op, int opsCount, smolv::DecodeAnalysis* analy
 	return kSpirvOpData[op].hasType != 0;
 }
 
-static int smolv_OpDeltaFromResult(SpvOp op, int opsCount, smolv::DecodeAnalysis* analysis = nullptr)
+static int smolv_OpDeltaFromResult(SpvOp op, int opsCount, smolv::DecodeAnalysis* decodeAnalysis = nullptr)
 {
 	if (op < 0 || op >= opsCount)
 		return 0;
@@ -1154,7 +1154,7 @@ static int smolv_OpDeltaFromResult(SpvOp op, int opsCount, smolv::DecodeAnalysis
 	return kSpirvOpData[op].deltaFromResult;
 }
 
-static bool smolv_OpVarRest(SpvOp op, int opsCount, smolv::DecodeAnalysis* analysis = nullptr)
+static bool smolv_OpVarRest(SpvOp op, int opsCount, smolv::DecodeAnalysis* decodeAnalysis = nullptr)
 {
 	if (op < 0 || op >= opsCount)
 		return false;
@@ -1306,25 +1306,25 @@ static int32_t smolv_ZigDecode(uint32_t u)
 // more compact varint encoding. This basically swaps rarely used op values that are < 16 with the
 // ones that are common.
 
-static SpvOp smolv_RemapOp(SpvOp op)
+static SpvOp smolv_RemapOp(SpvOp op, smolv::DecodeAnalysis* decodeAnalysis)
 {
-#	define _SMOLV_SWAP_OP(op1,op2) if (op==op1) return op2; if (op==op2) return op1
-	_SMOLV_SWAP_OP(SpvOpDecorate,SpvOpNop); // 0: 24%
-	_SMOLV_SWAP_OP(SpvOpLoad,SpvOpUndef); // 1: 17%
-	_SMOLV_SWAP_OP(SpvOpStore,SpvOpSourceContinued); // 2: 9%
-	_SMOLV_SWAP_OP(SpvOpAccessChain,SpvOpSource); // 3: 7.2%
-	_SMOLV_SWAP_OP(SpvOpVectorShuffle,SpvOpSourceExtension); // 4: 5.0%
+#	define _SMOLV_SWAP_OP(op1,op2, X) ANALYZE_REMAP(X) if (op==op1) return op2; if (op==op2) return op1
+	_SMOLV_SWAP_OP(SpvOpDecorate,SpvOpNop, "SMOLSWAP_SpvOpDecorate"); // 0: 24%
+	_SMOLV_SWAP_OP(SpvOpLoad,SpvOpUndef, "SMOLSWAP_SpvOpLoad"); // 1: 17%
+	_SMOLV_SWAP_OP(SpvOpStore,SpvOpSourceContinued, "SMOLSWAP_SpvOpStore"); // 2: 9%
+	_SMOLV_SWAP_OP(SpvOpAccessChain,SpvOpSource, "SMOLSWAP_SpvOpAccessChain"); // 3: 7.2%
+	_SMOLV_SWAP_OP(SpvOpVectorShuffle,SpvOpSourceExtension, "SMOLSWAP_SpvOpVectorShuffle"); // 4: 5.0%
 	// Name - already small enum value - 5: 4.4%
 	// MemberName - already small enum value - 6: 2.9%
-	_SMOLV_SWAP_OP(SpvOpMemberDecorate,SpvOpString); // 7: 4.0%
-	_SMOLV_SWAP_OP(SpvOpLabel,SpvOpLine); // 8: 0.9%
-	_SMOLV_SWAP_OP(SpvOpVariable,(SpvOp)9); // 9: 3.9%
-	_SMOLV_SWAP_OP(SpvOpFMul,SpvOpExtension); // 10: 3.9%
-	_SMOLV_SWAP_OP(SpvOpFAdd,SpvOpExtInstImport); // 11: 2.5%
+	_SMOLV_SWAP_OP(SpvOpMemberDecorate,SpvOpString, "SMOLSWAP_SpvOpMemberDecorate"); // 7: 4.0%
+	_SMOLV_SWAP_OP(SpvOpLabel,SpvOpLine, "SMOLSWAP_SpvOpLabel"); // 8: 0.9%
+	_SMOLV_SWAP_OP(SpvOpVariable,(SpvOp)9, "SMOLSWAP_SpvOpVariable"); // 9: 3.9%
+	_SMOLV_SWAP_OP(SpvOpFMul,SpvOpExtension, "SMOLSWAP_SpvOpFMul"); // 10: 3.9%
+	_SMOLV_SWAP_OP(SpvOpFAdd,SpvOpExtInstImport, "SMOLSWAP_SpvOpFAdd"); // 11: 2.5%
 	// ExtInst - already small enum value - 12: 1.2%
 	// VectorShuffleCompact - already small enum value - used for compact shuffle encoding
-	_SMOLV_SWAP_OP(SpvOpTypePointer,SpvOpMemoryModel); // 14: 2.2%
-	_SMOLV_SWAP_OP(SpvOpFNegate,SpvOpEntryPoint); // 15: 1.1%
+	_SMOLV_SWAP_OP(SpvOpTypePointer,SpvOpMemoryModel, "SMOLSWAP_SpvOpTypePointer"); // 14: 2.2%
+	_SMOLV_SWAP_OP(SpvOpFNegate,SpvOpEntryPoint, "SMOLSWAP_SpvOpFNegate"); // 15: 1.1%
 #	undef _SMOLV_SWAP_OP
 	return op;
 }
@@ -1346,14 +1346,14 @@ static uint32_t smolv_EncodeLen(SpvOp op, uint32_t len)
 	return len;
 }
 
-static uint32_t smolv_DecodeLen(SpvOp op, uint32_t len)
+static uint32_t smolv_DecodeLen(SpvOp op, uint32_t len, smolv::DecodeAnalysis* decodeAnalysis)
 {
 	len++;
-	if (op == SpvOpVectorShuffle)			len += 4;
-	if (op == SpvOpVectorShuffleCompact)	len += 4;
-	if (op == SpvOpDecorate)				len += 2;
-	if (op == SpvOpLoad)					len += 3;
-	if (op == SpvOpAccessChain)				len += 3;
+	if (op == SpvOpVectorShuffle)			{ len += 4; ANALYZE_REMAP("DecodeLen_SpvOpVectorShuffle1") }
+	if (op == SpvOpVectorShuffleCompact)	{ len += 4; ANALYZE_REMAP("DecodeLen_SpvOpVectorShuffleCompact") }
+	if (op == SpvOpDecorate)				{ len += 2; ANALYZE_REMAP("DecodeLen_SpvOpDecorate") }
+	if (op == SpvOpLoad)					{ len += 3; ANALYZE_REMAP("DecodeLen_SpvOpLoad") }
+	if (op == SpvOpAccessChain)				{ len += 3; ANALYZE_REMAP("DecodeLen_SpvOpAccessChain") }
 	return len;
 }
 
@@ -1370,13 +1370,13 @@ static bool smolv_WriteLengthOp(smolv::ByteArray& arr, uint32_t len, SpvOp op)
 	// adjustment to common lengths in smolv_EncodeLen wrapped around)
 	if (len > 0xFFFF)
 		return false;
-	op = smolv_RemapOp(op);
+	op = smolv_RemapOp(op, nullptr);
 	uint32_t oplen = ((len >> 4) << 20) | ((op >> 4) << 8) | ((len & 0xF) << 4) | (op & 0xF);
 	smolv_WriteVarint(arr, oplen);
 	return true;
 }
 
-static bool smolv_ReadLengthOp(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outLen, SpvOp& outOp)
+static bool smolv_ReadLengthOp(const uint8_t*& data, const uint8_t* dataEnd, uint32_t& outLen, SpvOp& outOp, smolv::DecodeAnalysis* decodeAnalysis = nullptr)
 {
 	uint32_t val;
 	if (!smolv_ReadVarint(data, dataEnd, val))
@@ -1384,8 +1384,8 @@ static bool smolv_ReadLengthOp(const uint8_t*& data, const uint8_t* dataEnd, uin
 	outLen = ((val >> 20) << 4) | ((val >> 4) & 0xF);
 	outOp = (SpvOp)(((val >> 4) & 0xFFF0) | (val & 0xF));
 
-	outOp = smolv_RemapOp(outOp);
-	outLen = smolv_DecodeLen(outOp, outLen);
+	outOp = smolv_RemapOp(outOp, decodeAnalysis);
+	outLen = smolv_DecodeLen(outOp, outLen, decodeAnalysis);
 	return true;
 }
 
@@ -1799,12 +1799,12 @@ bool smolv::Decode(const void* smolvData, size_t smolvSize, void* spirvOutputBuf
 }
 
 // Add any string and check if unique
-static void smolv::DecodeAdd(DecodeAnalysis& decodeAnalysis, std::string entry)
+static void smolv::DecodeAdd(DecodeAnalysis* decodeAnalysis, std::string entry)
 {
 	bool bEntryfound = false;
 	decodeBlock* CurrentBlock = nullptr;
 
-	for (auto &block : decodeAnalysis.Blocks)
+	for (auto &block : decodeAnalysis->Blocks)
 	{
 		if (block.entry == entry)
 		{
@@ -1819,7 +1819,7 @@ static void smolv::DecodeAdd(DecodeAnalysis& decodeAnalysis, std::string entry)
 	}
 	else
 	{
-		decodeAnalysis.Blocks.emplace_back(entry, 1);
+		decodeAnalysis->Blocks.emplace_back(entry, 1);
 	}
 }
 
@@ -1847,7 +1847,7 @@ static void smolv::SpvOpsAdd(DecodeAnalysis* decodeAnalysis, std::string entry)
 	}
 }
 
-bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, DecodeAnalysis& decodeAnalysis, uint32_t flags)
+bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* spirvOutputBuffer, size_t spirvOutputBufferSize, DecodeAnalysis* decodeAnalysis, uint32_t flags)
 {
 	// check header, and whether we have enough output buffer space
 	const size_t neededBufferSize = GetDecodedBufferSize(smolvData, smolvSize);
@@ -1889,11 +1889,11 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 		// read length + opcode
 		uint32_t instrLen;
 		SpvOp op;
-		if (!smolv_ReadLengthOp(bytes, bytesEnd, instrLen, op))
+		if (!smolv_ReadLengthOp(bytes, bytesEnd, instrLen, op, decodeAnalysis))
 			return false;
 		const bool wasSwizzle = (op == SpvOpVectorShuffleCompact);
 		if (wasSwizzle) {
-			ANALYZE("wasSwizzle");
+			ANALYZE("wasSwizzleVectorSuffle");
 			op = SpvOpVectorShuffle;
 		}
 		smolv_Write4(outSpirv, (instrLen << 16) | op);
@@ -1901,7 +1901,7 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 		size_t ioffs = 1;
 
 		// read type as varint, if we have it
-		if (smolv_OpHasType(op, knownOpsCount, &decodeAnalysis))
+		if (smolv_OpHasType(op, knownOpsCount, decodeAnalysis))
 		{
 			ANALYZE("smolv_OpHasType");
 			if (!smolv_ReadVarint(bytes, bytesEnd, val)) return false;
@@ -1909,7 +1909,7 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 			ioffs++;
 		}
 		// read result as delta+varint, if we have it
-		if (smolv_OpHasResult(op, knownOpsCount, &decodeAnalysis))
+		if (smolv_OpHasResult(op, knownOpsCount, decodeAnalysis))
 		{
 			ANALYZE("smolv_OpHasResult");
 			if (!smolv_ReadVarint(bytes, bytesEnd, val)) return false;
@@ -1955,6 +1955,7 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 				uint32_t memberLen;
 				if (knownExtraOps == -1)
 				{
+					ANALYZE("BlockInBlock_knownExtraOpsCondition");
 					if (!smolv_ReadVarint(bytes, bytesEnd, memberLen)) return false;
 					memberLen += 4;
 				}
@@ -1972,7 +1973,7 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 				// Special case for Offset decorations
 				if (memberDec == 35) // Offset
 				{
-					ANALYZE("OffsetDecoration");
+					ANALYZE("BlockInBlock_OffsetDecoration");
 					if (memberLen != 5)
 						return false;
 					if (!smolv_ReadVarint(bytes, bytesEnd, val)) return false;
@@ -1994,7 +1995,7 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 		}
 
 		// Read this many IDs, that are relative to result ID
-		int relativeCount = smolv_OpDeltaFromResult(op, knownOpsCount, &decodeAnalysis);
+		int relativeCount = smolv_OpDeltaFromResult(op, knownOpsCount, decodeAnalysis);
 		// "before zero" version only used zig encoding for IDs of several ops; after
 		// that ops got zig encoding for their IDs
 		bool zigDecodeVals = true;
@@ -2013,14 +2014,13 @@ bool smolv::DecodeWithAnalysis(const void* smolvData, size_t smolvSize, void* sp
 
 		if (wasSwizzle && instrLen <= 9)
 		{
-			ANALYZE("wasSizzleInstrLen9");
 			uint32_t swizzle = *bytes++;
-			if (instrLen > 5) smolv_Write4(outSpirv, (swizzle >> 6) & 3);
-			if (instrLen > 6) smolv_Write4(outSpirv, (swizzle >> 4) & 3);
-			if (instrLen > 7) smolv_Write4(outSpirv, (swizzle >> 2) & 3);
-			if (instrLen > 8) smolv_Write4(outSpirv, swizzle & 3);
+			if (instrLen > 5) { smolv_Write4(outSpirv, (swizzle >> 6) & 3); ANALYZE("wasSizzleInstrLen9_5"); }
+			if (instrLen > 6) { smolv_Write4(outSpirv, (swizzle >> 4) & 3); ANALYZE("wasSizzleInstrLen9_6"); }
+			if (instrLen > 7) { smolv_Write4(outSpirv, (swizzle >> 2) & 3); ANALYZE("wasSizzleInstrLen9_7"); }
+			if (instrLen > 8) { smolv_Write4(outSpirv, swizzle & 3); ANALYZE("wasSizzleInstrLen9_8"); }
 		}
-		else if (smolv_OpVarRest(op, knownOpsCount, &decodeAnalysis))
+		else if (smolv_OpVarRest(op, knownOpsCount, decodeAnalysis))
 		{
 			ANALYZE("OpvarRest");
 			// read rest of words with variable encoding
