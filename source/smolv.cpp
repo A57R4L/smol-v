@@ -1308,7 +1308,7 @@ static int32_t smolv_ZigDecode(uint32_t u)
 
 static SpvOp smolv_RemapOp(SpvOp op, smolv::DecodeAnalysis* decodeAnalysis)
 {
-#	define _SMOLV_SWAP_OP(op1,op2, X) ANALYZE_REMAP(X) if (op==op1) return op2; if (op==op2) return op1
+#	define _SMOLV_SWAP_OP(op1,op2, X) if (op==op1) { ANALYZE_REMAP(X) return op2; } if (op==op2) { ANALYZE_REMAP(X) return op1; }
 	_SMOLV_SWAP_OP(SpvOpDecorate,SpvOpNop, "SMOLSWAP_SpvOpDecorate"); // 0: 24%
 	_SMOLV_SWAP_OP(SpvOpLoad,SpvOpUndef, "SMOLSWAP_SpvOpLoad"); // 1: 17%
 	_SMOLV_SWAP_OP(SpvOpStore,SpvOpSourceContinued, "SMOLSWAP_SpvOpStore"); // 2: 9%
